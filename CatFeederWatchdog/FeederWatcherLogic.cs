@@ -1,36 +1,55 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace CatFeederWatchdog
 {
     public class FeederWatcherLogic
     {
-        private DateTime? lastFeed;
-        private DateTime nextFeed;
+        private readonly DisplayService displayService;
+        private readonly TimeSpan feedPeriod = TimeSpan.FromHours(4);
 
-        public FeederWatcherLogic()
+        public DateTime LastFeed { get; private set; }
+        public DateTime NextFeed { get; private set; }
+
+        public FeederWatcherLogic(DisplayService displayService)
         {
-            lastFeed = null;
-            nextFeed = DateTime.Now;
+            LastFeed = DateTime.Now;
+            NextFeed = DateTime.Now;
+            this.displayService = displayService;
         }
 
-        public void Feed()
+        public async Task Feed()
         {
-            lastFeed = DateTime.Now;
-            nextFeed = DateTime.Now.Add(TimeSpan.FromSeconds(5));
+            LastFeed = DateTime.Now;
+            NextFeed = DateTime.Now.Add(feedPeriod);
+            await displayService.DisplayFeedInfoAsync(LastFeed, NextFeed, false, "Кошки ели по 1/2");
+        }
+
+        public async Task FeedDouble()
+        {
+            LastFeed = DateTime.Now;
+            NextFeed = DateTime.Now.Add(feedPeriod).Add(feedPeriod);
+            await displayService.DisplayFeedInfoAsync(LastFeed, NextFeed, false, "Кошки ели по целой");
         }
 
         public bool IsCatStraving()
-        {
-            if (!lastFeed.HasValue) return true;
-            return nextFeed > DateTime.Now;
+        {         
+            return NextFeed < DateTime.Now;
         }
 
-        public TimeSpan GetTimeFromLastFeed()
+        internal string GenerateMessage()
         {
-            if (!lastFeed.HasValue) return TimeSpan.Zero;
-            return DateTime.Now - lastFeed.Value;
+            if (IsCatStraving())
+                return "Покорми кошек!";
+            else
+                return "Не верь кошкам!";
+        }
+
+        internal Task Refresh()
+        {
+            return displayService.DisplayFeedInfoAsync(LastFeed, NextFeed, IsCatStraving(), IsCatStraving() ? "Покорми!" : "Кошки сыты");
         }
     }
 }

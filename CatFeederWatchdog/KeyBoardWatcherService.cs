@@ -32,20 +32,24 @@ namespace CatFeederWatchdog
             gpio.RegisterCallbackForPinValueChangedEvent(5, PinEventTypes.Rising, Pin5ChangeCallback);
             gpio.RegisterCallbackForPinValueChangedEvent(6, PinEventTypes.Rising, Pin6ChangeCallback);
             //gpio.RegisterCallbackForPinValueChangedEvent(13, PinEventTypes.Rising, PinChangeCallback);
-            //gpio.RegisterCallbackForPinValueChangedEvent(19, PinEventTypes.Rising, PinChangeCallback);
+            gpio.RegisterCallbackForPinValueChangedEvent(19, PinEventTypes.Rising, Pin19ChangeCallback);
 
             return Task.CompletedTask;
         }
 
-        public void Pin5ChangeCallback(object sender, PinValueChangedEventArgs e) 
+        private async void Pin19ChangeCallback(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
-            watcherLogic.Feed();
+            await watcherLogic.Refresh();
         }
 
-        public void Pin6ChangeCallback(object sender, PinValueChangedEventArgs e)
+        private async void Pin5ChangeCallback(object sender, PinValueChangedEventArgs e) 
         {
-            Console.WriteLine($"now is {DateTime.Now}");
-            Console.WriteLine($"Pin {e.PinNumber} is {e.ChangeType}");            
+            await watcherLogic.Feed();
+        }
+
+        private async void Pin6ChangeCallback(object sender, PinValueChangedEventArgs e)
+        {
+            await watcherLogic.FeedDouble();
         }
         
         public Task StopAsync(CancellationToken cancellationToken)

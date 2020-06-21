@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -11,25 +12,25 @@ namespace CatFeederWatchdog
     {
         private readonly FeederWatcherLogic watcherLogic;
         private readonly DisplayService displayService;
+        private readonly ILogger<BackgroundDisplayUpdaterService> logger;
         private Timer timer;
 
-        public BackgroundDisplayUpdaterService(FeederWatcherLogic watcherLogic, DisplayService displayService)
+        public BackgroundDisplayUpdaterService(FeederWatcherLogic watcherLogic, DisplayService displayService, ILogger<BackgroundDisplayUpdaterService> logger)
         {
             this.watcherLogic = watcherLogic ?? throw new ArgumentNullException(nameof(watcherLogic));
             this.displayService = displayService;
+            this.logger = logger;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            timer = new Timer(UpdateDisplay, null, TimeSpan.Zero, TimeSpan.FromSeconds(2));
+            timer = new Timer(UpdateDisplay, null, TimeSpan.Zero, TimeSpan.FromMinutes(1));
             return Task.CompletedTask;
         }
 
-        private void UpdateDisplay(object state)
-        {
-            Console.WriteLine($"Is cat straving? {watcherLogic.IsCatStraving()}");
-            Console.WriteLine($"Time from last feed {watcherLogic.GetTimeFromLastFeed()}");
-            displayService.DisplayFeed();
+        private async void UpdateDisplay(object state)
+        {            
+            await displayService.DisplayFeedInfoAsync(watcherLogic.LastFeed, watcherLogic.NextFeed, watcherLogic.IsCatStraving(), watcherLogic.GenerateMessage());
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

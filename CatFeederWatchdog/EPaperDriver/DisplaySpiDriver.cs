@@ -121,18 +121,18 @@ namespace EPaperDriver
             await Task.Delay(200);
         }
 
-        ///// <summary>
-        ///// Wait while display is busy
-        ///// </summary>
-        //public void WaitUntilReady()
-        //{
-        //    bool busy;
-        //    do
-        //    {
-        //        var busyPinValue = gpioController.Read(PIN_BUSY);
-        //        busy = busyPinValue != PinValue.High;
-        //    } while (busy);
-        //}
+        /// <summary>
+        /// Wait while display is busy
+        /// </summary>
+        public void WaitDisplay()
+        {
+            bool busy;
+            do
+            {
+                var busyPinValue = gpioController.Read(PIN_BUSY);
+                busy = busyPinValue != PinValue.High;
+            } while (busy);
+        }
 
         /// <summary>
         /// Получить задачу, которая завершится, когда дисплей будет готов
@@ -143,8 +143,7 @@ namespace EPaperDriver
             var tcs = new TaskCompletionSource<object>();
             PinChangeEventHandler pinChange = (s, e) => 
             {
-                if (e.ChangeType == PinEventTypes.Rising)
-                    tcs.SetResult(null);
+                tcs.SetResult(null);
             };
 
             gpioController.RegisterCallbackForPinValueChangedEvent(PIN_BUSY, PinEventTypes.Rising, pinChange);

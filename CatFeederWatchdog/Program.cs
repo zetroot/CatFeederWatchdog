@@ -1,7 +1,9 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using EPaperDriver;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
@@ -18,17 +20,21 @@ namespace CatFeederWatchdog
             Host
             .CreateDefaultBuilder(args)
             .ConfigureAppConfiguration((hostContext, configApp) => 
-            {
-                configApp.AddJsonFile("appsettings.json", true, true);
-            })
+                {
+                    configApp.AddJsonFile("appsettings.json", true, true);
+                }
+            )
             .ConfigureServices(services => 
-            {
-                services.TryAddSingleton<FeederWatcherLogic>();
-                services.AddHostedService<KeyBoardWatcherService>();
-                services.AddHostedService<BackgroundDisplayUpdaterService>();
-                services.TryAddSingleton<DisplayService>();
-            }
-            );
+                {
+                    services.TryAddSingleton<FeederWatcherLogic>();
+                    services.AddHostedService<KeyBoardWatcherService>();
+                    services.AddHostedService<BackgroundDisplayUpdaterService>();
+                    services.TryAddSingleton<DisplayService>();
+                    services.TryAddSingleton<Eink2In7B>();
+                    services.TryAddSingleton<DisplaySpiDriver>();
+                }
+            )
+            .ConfigureLogging(logbuilder => logbuilder.AddConsole().SetMinimumLevel(LogLevel.Trace));
                 
                 
     }
