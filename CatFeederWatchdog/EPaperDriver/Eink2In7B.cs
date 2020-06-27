@@ -10,6 +10,8 @@ namespace EPaperDriver
 {
     public class Eink2In7B
     {
+        private static SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+
         private const int width = 264;
         private const int height = 176;
 
@@ -102,120 +104,126 @@ namespace EPaperDriver
 
         public async Task InitAsync()
         {
-            if (isInitialized) return;
-            isInitialized = true;
-            logger.LogTrace("Initializing display");
-            await displayDriver.ResetAsync();
-            logger.LogTrace("Display resetted");
-
-            
-
-            logger.LogTrace("booster soft start");
-            displayDriver.SendCommand(EinkDisplayCommand.BoosterSoftStart);
-            displayDriver.SendData(0x07, 0x07, 0x04);
-
-            logger.LogTrace("power optimization");
-            displayDriver.SendCommand(EinkDisplayCommand.PowerOptimization);
-            displayDriver.SendData(0x60, 0xA5);
-
-            displayDriver.SendCommand(EinkDisplayCommand.PowerOptimization);
-            displayDriver.SendData(0x89, 0xA5);
-
-            displayDriver.SendCommand(EinkDisplayCommand.PowerOptimization);
-            displayDriver.SendData(0x90, 0x00);
-
-            displayDriver.SendCommand(EinkDisplayCommand.PowerOptimization);
-            displayDriver.SendData(0x93, 0x2A);
-
-            logger.LogTrace("Reset DFV_EN ");
-            displayDriver.SendCommand(EinkDisplayCommand.PartialDisplayRefresh);
-            displayDriver.SendData(0x00);
-
-            logger.LogTrace("Power settings");
-            displayDriver.SendCommand(EinkDisplayCommand.PowerSetting);
-            displayDriver.SendData(0x03, 0x00, 0x2b, 0x2b, 0x09);
-
-            
-            logger.LogTrace("Power on");
-            displayDriver.SendCommand(EinkDisplayCommand.PowerOn);
-            logger.LogTrace("Waiting for display...");
-            //await displayDriver.WaitDisplayAsync();
-            displayDriver.WaitDisplay();
-            logger.LogTrace("Display started");
-            displayDriver.SendCommand(EinkDisplayCommand.PanelSetting);
-            displayDriver.SendData(0xaf);
-
-            logger.LogTrace("PLL control");
-            displayDriver.SendCommand(EinkDisplayCommand.PllControl);
-            displayDriver.SendData(0x3a);
-
-            
-            logger.LogTrace("VcmDcSetting");
-            displayDriver.SendCommand(EinkDisplayCommand.VcmDcSetting);
-            displayDriver.SendData(0x12);
-
-            logger.LogTrace("VcomAndDataIntervalSetting");
-            displayDriver.SendCommand(EinkDisplayCommand.VcomAndDataIntervalSetting);
-            displayDriver.SendData(0x87);
+            await semaphore.WaitAsync();
+            try
+            {
+                if (isInitialized) return;
+                isInitialized = true;
+                logger.LogTrace("Initializing display");
+                await displayDriver.ResetAsync();
+                logger.LogTrace("Display resetted");
 
 
-            SetLut();
+
+                logger.LogTrace("booster soft start");
+                displayDriver.SendCommand(EinkDisplayCommand.BoosterSoftStart);
+                displayDriver.SendData(0x07, 0x07, 0x04);
+
+                logger.LogTrace("power optimization");
+                displayDriver.SendCommand(EinkDisplayCommand.PowerOptimization);
+                displayDriver.SendData(0x60, 0xA5);
+
+                displayDriver.SendCommand(EinkDisplayCommand.PowerOptimization);
+                displayDriver.SendData(0x89, 0xA5);
+
+                displayDriver.SendCommand(EinkDisplayCommand.PowerOptimization);
+                displayDriver.SendData(0x90, 0x00);
+
+                displayDriver.SendCommand(EinkDisplayCommand.PowerOptimization);
+                displayDriver.SendData(0x93, 0x2A);
+
+                logger.LogTrace("Reset DFV_EN ");
+                displayDriver.SendCommand(EinkDisplayCommand.PartialDisplayRefresh);
+                displayDriver.SendData(0x00);
+
+                logger.LogTrace("Power settings");
+                displayDriver.SendCommand(EinkDisplayCommand.PowerSetting);
+                displayDriver.SendData(0x03, 0x00, 0x2b, 0x2b, 0x09);
+
+
+                logger.LogTrace("Power on");
+                displayDriver.SendCommand(EinkDisplayCommand.PowerOn);
+                logger.LogTrace("Waiting for display...");
+                //await displayDriver.WaitDisplayAsync();
+                displayDriver.WaitDisplay();
+                logger.LogTrace("Display started");
+                displayDriver.SendCommand(EinkDisplayCommand.PanelSetting);
+                displayDriver.SendData(0xaf);
+
+                logger.LogTrace("PLL control");
+                displayDriver.SendCommand(EinkDisplayCommand.PllControl);
+                displayDriver.SendData(0x3a);
+
+
+                logger.LogTrace("VcmDcSetting");
+                displayDriver.SendCommand(EinkDisplayCommand.VcmDcSetting);
+                displayDriver.SendData(0x12);
+
+                logger.LogTrace("VcomAndDataIntervalSetting");
+                displayDriver.SendCommand(EinkDisplayCommand.VcomAndDataIntervalSetting);
+                displayDriver.SendData(0x87);
+
+
+                SetLut();
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
 
-        public Task ClearDisplay()
+        public async Task ClearDisplay()
         {
-            logger.LogTrace("Clear black screen");
-            displayDriver.SendCommand(EinkDisplayCommand.DataStartTransmission1);
-            displayDriver.SendData(Enumerable.Repeat((byte)0x00, width * height / 8).ToArray());
-            displayDriver.SendCommand(EinkDisplayCommand.DataStop);
+            await semaphore.WaitAsync();
+            try
+            {
+                logger.LogTrace("Clear black screen");
+                displayDriver.SendCommand(EinkDisplayCommand.DataStartTransmission1);
+                displayDriver.SendData(Enumerable.Repeat((byte)0x00, width * height / 8).ToArray());
+                displayDriver.SendCommand(EinkDisplayCommand.DataStop);
 
-            logger.LogTrace("Clear red screen");
-            displayDriver.SendCommand(EinkDisplayCommand.DataStartTransmission2);
-            displayDriver.SendData(Enumerable.Repeat((byte)0x00, width * height / 8).ToArray());
-            displayDriver.SendCommand(EinkDisplayCommand.DataStop);
+                logger.LogTrace("Clear red screen");
+                displayDriver.SendCommand(EinkDisplayCommand.DataStartTransmission2);
+                displayDriver.SendData(Enumerable.Repeat((byte)0x00, width * height / 8).ToArray());
+                displayDriver.SendCommand(EinkDisplayCommand.DataStop);
 
-            logger.LogTrace("refresh");
-            displayDriver.SendCommand(EinkDisplayCommand.DisplayRefresh);
-            logger.LogTrace("refreshed");
-            //return displayDriver.WaitDisplayAsync().ContinueWith(_ => logger.LogTrace("Display is cleared"), TaskContinuationOptions.OnlyOnRanToCompletion);
-            displayDriver.WaitDisplay();
-            logger.LogTrace("Display is cleared");
-            return Task.CompletedTask;
+                logger.LogTrace("refresh");
+                displayDriver.SendCommand(EinkDisplayCommand.DisplayRefresh);
+                logger.LogTrace("refreshed");
+                //return displayDriver.WaitDisplayAsync().ContinueWith(_ => logger.LogTrace("Display is cleared"), TaskContinuationOptions.OnlyOnRanToCompletion);
+                displayDriver.WaitDisplay();
+                logger.LogTrace("Display is cleared");
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
 
-        public Task DisplayData(byte[] black, byte[] red)
+        public async Task DisplayData(byte[] black, byte[] red)
         {
-            logger.LogTrace("Sending black data");
-            displayDriver.SendCommand(EinkDisplayCommand.DataStartTransmission1);
-            displayDriver.SendData(black);
-            displayDriver.SendCommand(EinkDisplayCommand.DataStop);
-            logger.LogTrace("Black data sent");
-            logger.LogTrace("Sending red data");
-            displayDriver.SendCommand(EinkDisplayCommand.DataStartTransmission2);
-            displayDriver.SendData(red);
-            displayDriver.SendCommand(EinkDisplayCommand.DataStop);
-            logger.LogTrace("Red data send");
+            await semaphore.WaitAsync();
+            try 
+            { 
+                logger.LogTrace("Sending black data");
+                displayDriver.SendCommand(EinkDisplayCommand.DataStartTransmission1);
+                displayDriver.SendData(black);
+                displayDriver.SendCommand(EinkDisplayCommand.DataStop);
+                logger.LogTrace("Black data sent");
+                logger.LogTrace("Sending red data");
+                displayDriver.SendCommand(EinkDisplayCommand.DataStartTransmission2);
+                displayDriver.SendData(red);
+                displayDriver.SendCommand(EinkDisplayCommand.DataStop);
+                logger.LogTrace("Red data send");
 
-            displayDriver.SendCommand(EinkDisplayCommand.DisplayRefresh);
-            //return displayDriver.WaitDisplayAsync().ContinueWith(_ => logger.LogTrace("B&R data displayed"), TaskContinuationOptions.OnlyOnRanToCompletion);
-            displayDriver.WaitDisplay();
-            logger.LogTrace("B&R data displayed");
-            return Task.CompletedTask;
-        }
-
-        public Task DisplayBlack(byte[] black)
-        {
-            logger.LogTrace("Sending black data");
-            displayDriver.SendCommand(EinkDisplayCommand.DataStartTransmission1);
-            displayDriver.SendData(black);
-            displayDriver.SendCommand(EinkDisplayCommand.DataStop);
-            logger.LogTrace("Sent black data");
-
-            displayDriver.SendCommand(EinkDisplayCommand.DisplayRefresh);
-            //return displayDriver.WaitDisplayAsync().ContinueWith(_ => logger.LogTrace("B data displayed"), TaskContinuationOptions.OnlyOnRanToCompletion);
-            displayDriver.WaitDisplay();
-            logger.LogTrace("B data displayed");
-            return Task.CompletedTask;
+                displayDriver.SendCommand(EinkDisplayCommand.DisplayRefresh);                
+                displayDriver.WaitDisplay();
+                logger.LogTrace("B&R data displayed");
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
     }
 }

@@ -1,55 +1,69 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace CatFeederWatchdog
 {
-    public class FeederWatcherLogic
+    public class FeederWatcherLogic : IObservable<FeedingState>
     {
-        private readonly DisplayService displayService;
         private readonly TimeSpan feedPeriod = TimeSpan.FromHours(4);
+        private readonly ILogger<FeederWatcherLogic> logger;
 
+        private BehaviorSubject<FeedingState> subject;
+        private FeedQuantity lastFeedQuantity;
+        
         public DateTime LastFeed { get; private set; }
         public DateTime NextFeed { get; private set; }
 
-        public FeederWatcherLogic(DisplayService displayService)
+        public FeederWatcherLogic(ILogger<FeederWatcherLogic> logger)
         {
             LastFeed = DateTime.Now;
             NextFeed = DateTime.Now;
-            this.displayService = displayService;
+            subject = new BehaviorSubject<FeedingState>(new FeedingState());            
+            
+            Observable
+                .Interval(TimeSpan.FromMinutes(20))
+                .Subscribe(_ => { subject.OnNext(new FeedingState(LastFeed, NextFeed, lastFeedQuantity)); logger.LogInformation("Regular refresh"); });
+            this.logger = logger;
         }
 
-        public async Task Feed()
+        public void Feed()
         {
+            logger.LogTrace("Feed is called");
             LastFeed = DateTime.Now;
             NextFeed = DateTime.Now.Add(feedPeriod);
-            await displayService.DisplayFeedInfoAsync(LastFeed, NextFeed, false, "Кошки ели по 1/2");
+            lastFeedQuantity = FeedQuantity.Half;
+            subject.OnNext(new FeedingState(LastFeed, NextFeed, lastFeedQuantity));
+            Observable
+                .Timer(feedPeriod)
+                .Subscribe(_ => { subject.OnNext(new FeedingState(LastFeed, NextFeed, lastFeedQuantity)); logger.LogInformation("Next feed alert"); }) ;
         }
 
-        public async Task FeedDouble()
+        public void FeedDouble()
         {
             LastFeed = DateTime.Now;
             NextFeed = DateTime.Now.Add(feedPeriod).Add(feedPeriod);
-            await displayService.DisplayFeedInfoAsync(LastFeed, NextFeed, false, "Кошки ели по целой");
+            lastFeedQuantity = FeedQuantity.Full;
+            subject.OnNext(new FeedingState(LastFeed, NextFeed, lastFeedQuantity));
+            Observable
+                .Timer(feedPeriod * 2)
+                .Subscribe(_ => { subject.OnNext(new FeedingState(LastFeed, NextFeed, lastFeedQuantity)); logger.LogInformation("Next feed alert"); });
         }
 
-        public bool IsCatStraving()
-        {         
-            return NextFeed < DateTime.Now;
-        }
-
-        internal string GenerateMessage()
+        public IDisposable Subscribe(IObserver<FeedingState> observer)
         {
-            if (IsCatStraving())
-                return "Покорми кошек!";
-            else
-                return "Не верь кошкам!";
+            logger.LogTrace("Observer is subsribing: {0}", observer);
+            return subject.Subscribe(observer);
         }
 
-        internal Task Refresh()
+        internal void Refresh()
         {
-            return displayService.DisplayFeedInfoAsync(LastFeed, NextFeed, IsCatStraving(), IsCatStraving() ? "Покорми!" : "Кошки сыты");
+            logger.LogTrace("Refresh called");
+            subject.OnNext(new FeedingState(LastFeed, NextFeed, lastFeedQuantity));
         }
     }
 }

@@ -19,6 +19,7 @@ namespace CatFeederWatchdog
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host
             .CreateDefaultBuilder(args)
+            .UseSystemd()
             .ConfigureAppConfiguration((hostContext, configApp) => 
                 {
                     configApp.AddJsonFile("appsettings.json", true, true);
@@ -27,11 +28,13 @@ namespace CatFeederWatchdog
             .ConfigureServices(services => 
                 {
                     services.TryAddSingleton<FeederWatcherLogic>();
-                    services.AddHostedService<KeyBoardWatcherService>();
-                    services.AddHostedService<BackgroundDisplayUpdaterService>();
                     services.TryAddSingleton<DisplayService>();
                     services.TryAddSingleton<Eink2In7B>();
                     services.TryAddSingleton<DisplaySpiDriver>();
+                    services.AddHostedService<KeyBoardWatcherService>();
+                    services.AddHostedService<DisplayUpdaterService>();
+
+                    services.Configure<HostOptions>(opts => opts.ShutdownTimeout = TimeSpan.FromSeconds(30));
                 }
             )
             .ConfigureLogging(logbuilder => logbuilder.AddConsole().SetMinimumLevel(LogLevel.Trace));
